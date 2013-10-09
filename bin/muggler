@@ -2,7 +2,10 @@
 set -e
 
 function prefix {
-	"$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	local bin="${BASH_SOURCE[0]}"
+	local lnk="$(readlink "${bin}")"
+
+	(cd "$(dirname "${bin}")" && cd "$(dirname "${lnk}")/.." && pwd)
 }
 
 function this_script {
@@ -103,6 +106,11 @@ function install {
 	install_cmd "$(repo_dir)/.git/hooks/post-checkout" "$(this_script) sync \"\${1}\" \"\${2}\""
 	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
 }
+
+if ! rep_dir 2> /dev/null; then
+	echo "Not inside a git repository"
+	exit 1
+fi
 
 case "${1}" in
 "install")
