@@ -1,0 +1,127 @@
+#!/bin/bash
+set -e
+
+function prefix {
+	"$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+}
+
+function this_script {
+	echo "$(prefix)/bin/muggler"
+}
+
+function detect-ruby {
+	if which rbenv > /dev/null; then
+	  ruby=$(rbenv which ruby)
+	elif which rvm > /dev/null; then
+	  source $(rvm env --path)
+	  ruby=$(which ruby)
+	else
+	  ruby=$(which ruby)
+	fi
+
+	if [[ -z $ruby ]]; then
+	  exit 1
+	else
+	  echo $ruby
+	fi
+}
+
+function repo_dir {
+	git rev-parse --show-toplevel
+}
+
+function repo_id {
+	local id=$(git config remote.origin.url || rep_dir)
+	echo -n "${id}" | md5
+}
+
+function rev_name {
+	git name-rev --name-only "${1}"
+}
+
+function rev_migrations {
+	git ls-tree "${1}" -- db/migrate/ | cut -f 2 | sed 's/db\/migrate\///'
+}
+
+function rev_mig_diff {
+	local src="${1}"
+	local tgt="${2}"
+
+	local src_f="${TMPDIR}muggler/$(repo_id)/$(git rev-parse "${src}")"
+	local tgt_f="${TMPDIR}muggler/$(repo_id)/$(git rev-parse "${tgt}")"
+
+	mkdir -p "$(dirname ${src_f})"
+	mkdir -p "$(dirname ${tgt_f})"
+
+	rev_migrations "${src}" > $src_f
+	rev_migrations "${tgt}" > $tgt_f
+
+	diff "${src_f}" "${tgt_f}"
+	return 0
+}
+
+function sync {
+	if [[ "$(git rev-parse "${1}")" == "$(git rev-parse "${2}")" ]]; then
+		return 0
+	fi
+
+	local log="$(repo_dir)/.sync.log"
+	cat /dev/null > "${log}"
+
+	local src="$(rev_name ${1})"
+	local tgt="$(rev_name ${2})"
+
+	echo "-> Calculating migration difference for ${src}..${tgt}" | tee "${log}"
+	local mdiff="$(rev_mig_diff "${src}" "${tgt}" | tee "${log}")"
+
+	if [[ ! -z "${mdiff}" ]]; then
+		local mdw="$(echo -n "${mdiff}" | egrep "^<" | cut -f 2 -d ' ')"
+		local mup="$(echo -n "${mdiff}" | egrep "^>" | cut -f 2 -d ' ')"
+
+		echo "-> Running bundler (this might take a while)" | tee "${log}"
+		bundle >> "${log}"
+
+		echo "-> Loading rails application and running migrations..."
+		bundle exec rails runner "$(prefix)/libexec/migrator.rb" "${src}" "${mdw}" "${mup}" "${log}" >> "${log}"
+	else
+		echo "No migrations to run." | tee "${log}"
+	fi
+}
+
+function install_cmd {
+	local file="${1}"
+	local cmd="${2}"
+
+	local content="$(cat "${file}")"
+	local content="$(echo "${content}" | { fgrep -v "muggler" || true; })"
+
+	echo -n "${content}" > "${file}"
+	echo "${cmd}" >> "${file}"
+}
+
+function install {
+	install_cmd "$(repo_dir)/.git/hooks/post-checkout" "$(this_script) sync \"\${1}\" \"\${2}\""
+	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
+}
+
+case "${1}" in
+"install")
+	install
+	;;
+"sync")
+	sync "${2}" "${3}"
+	;;
+*)
+
+	cat <<EOF
+Usage: $(basename $(this_script)) install
+       $(basename $(this_script)) sync <rev_from> <rev_to>
+
+Commands
+
+  install   Install muggler into the current repository, setting up all git hooks
+  sync      Synchronize migrations between to rev, git hooks perform this call
+
+EOF
+	;;
+esac
