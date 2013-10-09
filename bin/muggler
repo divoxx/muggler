@@ -5,7 +5,7 @@ function prefix {
 	local bin="${BASH_SOURCE[0]}"
 	local lnk="$(readlink "${bin}")"
 
-	(cd "$(dirname "${bin}")" && cd "$(dirname "${lnk}")/.." && pwd)
+	echo $(cd "$(dirname "${bin}")" && cd "$(dirname "${lnk}")/.." && pwd)
 }
 
 function this_script {
@@ -105,6 +105,8 @@ function install_cmd {
 
 	echo -n "${content}" > "${file}"
 	echo "${cmd}" >> "${file}"
+
+	chmod +x "${file}"
 }
 
 function install {
@@ -112,7 +114,7 @@ function install {
 	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
 }
 
-if ! repo_dir 2> /dev/null; then
+if ! repo_dir > /dev/null 2>&1; then
 	echo "Not inside a git repository"
 	exit 1
 fi
