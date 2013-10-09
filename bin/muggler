@@ -34,7 +34,7 @@ function repo_dir {
 }
 
 function repo_id {
-	local id=$(git config remote.origin.url || rep_dir)
+	local id=$(git config remote.origin.url || repo_dir)
 	echo -n "${id}" | md5
 }
 
@@ -107,7 +107,7 @@ function install {
 	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
 }
 
-if ! rep_dir 2> /dev/null; then
+if ! repo_dir 2> /dev/null; then
 	echo "Not inside a git repository"
 	exit 1
 fi
