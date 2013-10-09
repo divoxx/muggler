@@ -95,8 +95,13 @@ function install_cmd {
 	local file="${1}"
 	local cmd="${2}"
 
-	local content="$(cat "${file}" || echo "")"
-	local content="$(echo "${content}" | { fgrep -v "muggler" || true; })"
+	if [[ -f "${file}" ]]; then
+		local content="$(cat "${file}")"
+	else
+		local content=""
+	fi
+
+	content="$(echo "${content}" | { fgrep -v "muggler" || true; })"
 
 	echo -n "${content}" > "${file}"
 	echo "${cmd}" >> "${file}"
