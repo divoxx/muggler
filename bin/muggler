@@ -75,7 +75,7 @@ function sync {
 	local tgt="$(rev_name ${2})"
 
 	echo "-> Calculating migration difference for ${src}..${tgt}" | tee "${log}"
-	local mdiff="$(rev_mig_diff "${src}" "${tgt}" | tee "${log}")"
+	local mdiff="$(rev_mig_diff "${1}" "${2}" | tee "${log}")"
 
 	if [[ ! -z "${mdiff}" ]]; then
 		local mdw="$(echo -n "${mdiff}" | egrep "^<" | cut -f 2 -d ' ')"
@@ -85,7 +85,7 @@ function sync {
 		bundle >> "${log}"
 
 		echo "-> Loading rails application and running migrations..."
-		bundle exec rails runner "$(prefix)/libexec/migrator.rb" "${src}" "${mdw}" "${mup}" "${log}" >> "${log}"
+		bundle exec rails runner "$(prefix)/libexec/migrator.rb" "${1}" "${mdw}" "${mup}" "${log}" >> "${log}"
 	else
 		echo "No migrations to run." | tee "${log}"
 	fi
