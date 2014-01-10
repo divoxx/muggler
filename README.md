@@ -2,7 +2,7 @@ muggler
 =======
 
 Muggler is a git hook that calculate migration difference between git branches - for Rails applications - and 
-automatically apply the migrations in the proper order when you change between branches, pull or merge.
+automatically revert and apply the migrations in the proper order when you change between branches, pull or merge.
 
 Installation
 ============
