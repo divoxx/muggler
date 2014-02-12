@@ -135,7 +135,7 @@ function cmd_sync {
 }
 
 function cmd_install {
-	mkdir "$(muggler_dir)"
+	mkdir -p "$(muggler_dir)"
 	install_cmd "$(repo_dir)/.git/hooks/post-checkout" "$(this_script) sync \"\${1}\" \"\${2}\""
 	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
 	echo "Muggler successfully installed. Make sure you add .muggler to .gitignore"
