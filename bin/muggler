@@ -79,7 +79,7 @@ function install_cmd {
 	content="$(echo "${content}" | { fgrep -v "muggler" || true; })"
 
 	echo -n "${content}" > "${file}"
-	echo "${cmd}" >> "${file}"
+	echo "unset GIT_DIR; ${cmd}" >> "${file}"
 
 	chmod +x "${file}"
 }
