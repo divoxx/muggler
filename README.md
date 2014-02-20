@@ -36,8 +36,8 @@ Usage
 =====
 
 Muggler will automatically run bundler and the migrations when necessary. It will only load the app environment to 
-run migrations when there are database differences between the branches, *otherwise it will be as fast as normal 
-branch switching*.
+run migrations when there are database differences between the branches, **otherwise it will be as fast as normal 
+branch switching**.
 
 Somtimes, if you're going to be moving temporarily between branches and you wanna skip the auto running of migrations
 you can use `muggler hold`. Once you're done, just run `muggler continue` and it will calculate the difference the 
