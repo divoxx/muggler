@@ -41,7 +41,7 @@ branch switching**.
 
 Somtimes, if you're going to be moving temporarily between branches and you wanna skip the auto running of migrations
 you can use `muggler hold`. Once you're done, just run `muggler continue` and it will calculate the difference the 
-current between state and the state where `hold` was called and execute accordingly.
+between the current state and the state where `hold` was called and execute accordingly.
 
 License
 =======
