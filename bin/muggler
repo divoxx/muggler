@@ -1,6 +1,21 @@
 #!/bin/bash
 set -e
 
+function usage {
+	cat <<EOF
+Usage: $(basename $(this_script)) install
+       $(basename $(this_script)) sync [ <rev_from> <rev_to> ]
+
+Commands
+
+  install   Install muggler into the current repository, setting up all git hooks
+  sync      Synchronize migrations between to rev, git hooks perform this call
+  hold 		Hold auto-migrations until continue is called
+  continue  Perform migration from when hold was called to the current commit
+  store_rev Stores the current rev as last migrated revision
+EOF
+}
+
 function prefix {
 	local bin="${BASH_SOURCE[0]}"
 	local lnk="$(readlink "${bin}")"
@@ -66,6 +81,25 @@ function rev_mig_diff {
 	diff "${src_f}" "${tgt_f}"
 	return 0
 }
+
+hook_post_checkout=$(cat <<EOS
+if [[ -f "$(muggler_dir)/hold" ]]; then
+	echo "Muggler is on hold, skipping migrations. Run muggler continue when ready"
+	return 0
+fi
+
+$(this_script) sync "\${1}" "\${2}"
+EOS)
+
+hook_merge=$(cat <<EOS
+if [[ -f "$(muggler_dir)/hold" ]]; then
+	echo "Muggler is on hold, skipping migrations. Run muggler continue when ready"
+	return 0
+fi
+
+$(this_script) sync HEAD@{1} HEAD
+EOS)
+
 function install_cmd {
 	local file="${1}"
 	local cmd="${2}"
@@ -79,7 +113,7 @@ function install_cmd {
 	content="$(echo "${content}" | { fgrep -v "muggler" || true; })"
 
 	echo -n "${content}" > "${file}"
-	echo "unset GIT_DIR; ${cmd}" >> "${file}"
+	echo -e "unset GIT_DIR;\n\n${cmd}" > "${file}"
 
 	chmod +x "${file}"
 }
@@ -102,20 +136,32 @@ function cmd_continue {
 }
 
 function cmd_sync {
-	if [[ "$(git rev-parse "${1}")" == "$(git rev-parse "${2}")" ]]; then
-		return 0
-	fi
+	local last_rev_file="$(muggler_dir)/last_rev"
 
-	if [[ -f "$(muggler_dir)/hold" ]]; then
-		echo "Muggler is on hold, skipping migrations. Run muggler continue when ready"
-		return 0
+	local last_rev="$(cat "${last_rev_file}" 2> /dev/null)"
+	if [[ -z "${last_rev}" ]]; then
+		last_rev="$(git rev-list --max-parents=0 --max-count=1 HEAD)"
 	fi
 
 	local log="$(muggler_dir)/sync.log"
 	cat /dev/null > "${log}"
 
-	local src="$(rev_name ${1})"
-	local tgt="$(rev_name ${2})"
+	if [[ -z "${1}" ]] && [[ -z "${2}" ]]; then
+		local src="${last_rev}"
+		local tgt="HEAD"
+	elif [[ ! -z "${1}" ]] && [[ ! -z "${2}" ]]; then
+		local src="$(rev_name ${1})"
+		local tgt="$(rev_name ${2})"
+	else
+		echo "Error: invalid arugments"
+		echo ""
+		usage
+		exit 1
+	fi
+
+	if [[ "$(git rev-parse "${src}")" == "$(git rev-parse "${tgt}")" ]]; then
+		return 0
+	fi
 
 	echo "-> Calculating migration difference for ${src}..${tgt}" | tee "${log}"
 	local mdiff="$(rev_mig_diff "${1}" "${2}" | tee "${log}")"
@@ -132,12 +178,18 @@ function cmd_sync {
 	else
 		echo "No migrations to run." | tee "${log}"
 	fi
+
+	echo -n "${tgt}" > "${last_rev_file}"
+}
+
+function cmd_store_rev {
+	echo -n "$(git rev-parse HEAD)" > "$(muggler_dir)/last_rev"
 }
 
 function cmd_install {
 	mkdir -p "$(muggler_dir)"
-	install_cmd "$(repo_dir)/.git/hooks/post-checkout" "$(this_script) sync \"\${1}\" \"\${2}\""
-	install_cmd "$(repo_dir)/.git/hooks/post-merge" "$(this_script) sync \"HEAD@{1}\" \"HEAD\""
+	install_cmd "$(repo_dir)/.git/hooks/post-checkout" "${hook_post_checkout}"
+	install_cmd "$(repo_dir)/.git/hooks/post-merge" "${hook_merge}"
 	echo "Muggler successfully installed. Make sure you add .muggler to .gitignore"
 }
 
@@ -159,19 +211,10 @@ case "${1}" in
 "continue")
 	cmd_continue
 	;;
+"store_rev")
+	cmd_store_rev
+	;;
 *)
-
-	cat <<EOF
-Usage: $(basename $(this_script)) install
-       $(basename $(this_script)) sync <rev_from> <rev_to>
-
-Commands
-
-  install   Install muggler into the current repository, setting up all git hooks
-  sync      Synchronize migrations between to rev, git hooks perform this call
-  hold 		Hold auto-migrations until continue is called
-  continue  Perform migration from when hold was called to the current commit
-
-EOF
+	usage
 	;;
 esac
