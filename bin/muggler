@@ -170,7 +170,7 @@ function cmd_sync {
 		local mdw="$(echo -n "${mdiff}" | egrep "^<" | cut -f 2 -d ' ')"
 		local mup="$(echo -n "${mdiff}" | egrep "^>" | cut -f 2 -d ' ')"
 
-		echo "-> $(bundle check)" | tee "${log}"
+		bundle check >> "${log}"
 		if [ $? -eq 1 ]; then
 			echo "-> Running bundler (this might take a while)" | tee "${log}"
 			bundle >> "${log}"
