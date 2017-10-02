@@ -120,7 +120,7 @@ function install_cmd {
 
 function cmd_hold {
 	echo "$(git rev-parse HEAD)" > "$(muggler_dir)/hold"
-	echo "Muggler is on hold from now one and will not run migrations."
+	echo "Muggler is on hold from now on and will not run migrations."
 	echo "Use muggler continue to run the migrations from this point and start auto-migration again."
 }
 
@@ -153,7 +153,7 @@ function cmd_sync {
 		local src="$(rev_name ${1})"
 		local tgt="$(rev_name ${2})"
 	else
-		echo "Error: invalid arugments"
+		echo "Error: invalid arguments"
 		echo ""
 		usage
 		exit 1
