@@ -170,8 +170,11 @@ function cmd_sync {
 		local mdw="$(echo -n "${mdiff}" | egrep "^<" | cut -f 2 -d ' ')"
 		local mup="$(echo -n "${mdiff}" | egrep "^>" | cut -f 2 -d ' ')"
 
-		echo "-> Running bundler (this might take a while)" | tee "${log}"
-		bundle >> "${log}"
+		bundle check >> "${log}"
+		if [ $? -eq 1 ]; then
+			echo "-> Running bundler (this might take a while)" | tee "${log}"
+			bundle >> "${log}"
+		fi
 
 		echo "-> Loading rails application and running migrations..."
 		bundle exec rails runner "$(prefix)/libexec/migrator.rb" "${1}" "${mdw}" "${mup}" "${log}" >> "${log}"
